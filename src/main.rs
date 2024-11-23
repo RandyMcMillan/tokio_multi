@@ -5,82 +5,48 @@ use dirs::*;
 use std::env;
 use std::error::Error;
 
-use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher};
-
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::mpsc,
 };
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
-const CUSTOM_PORT: usize = 8000;
-
-fn prepend<T>(v: Vec<T>, s: &[T]) -> Vec<T>
-where
-    T: Clone,
-{
-    let mut tmp: Vec<_> = s.to_owned();
-    tmp.extend(v);
-    tmp
-}
-
-// Pseudorandom number generator from the "Xorshift RNGs" paper by George Marsaglia.
-//
-// https://github.com/rust-lang/rust/blob/1.55.0/library/core/src/slice/sort.rs#L559-L573
-pub fn random_numbers() -> impl Iterator<Item = u32> {
-    let mut random = 92u32;
-    std::iter::repeat_with(move || {
-        random ^= random << 13;
-        random ^= random >> 17;
-        random ^= random << 5;
-        random
-    })
-}
-
-pub fn random_seed() -> u64 {
-    RandomState::new().build_hasher().finish()
-}
-
-fn nanos() -> Result<(), Box<dyn Error>> {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.subsec_nanos();
-
-    // Prints 864479511, 455850730, etc.
-    println!("Random number: {nanos}");
-    Ok(())
-}
+use tokio_multi::CUSTOM_PORT;
+use tokio_multi::prepend;
+use tokio_multi::nanos;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    //let _ = nanos();
+    let nanos = nanos();
+    println!("{}", nanos.unwrap().to_string());
     println!("{}", CUSTOM_PORT);
     let cwd = env::current_dir().unwrap();
     let cwd_to_string_lossy: String = String::from(cwd.to_string_lossy());
     println!("{}", cwd_to_string_lossy);
     let local_data_dir = data_local_dir();
     println!("{}", local_data_dir.expect("REASON").display());
-    // Create a tokio runtime whose job is to simply accept new incoming TCP connections.
+    // Create a tokio runtime whose job is to simply accept new incoming TCP
+    // connections.
     let acceptor_runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .thread_name("acceptor-pool")
         .enable_all()
         .build()?;
 
-    // Create another tokio runtime whose job is only to write the response bytes to the outgoing TCP message.
+    // Create another tokio runtime whose job is only to write the response
+    // bytes to the outgoing TCP message.
     let echo_runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(8)
         .thread_name("echo-handler-pool")
         .enable_all()
         .build()?;
 
-    // this channel is used to pass the TcpStream from acceptor_runtime task to
+    // This channel is used to pass the TcpStream from acceptor_runtime task to
     // to echo_runtime task where the request handling is done.
     let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
 
     // The receiver part of the channel is moved inside a echo_runtime task.
-    // This task simply writes the echo response to the TcpStreams coming through the
-    // channel receiver.
+    // This task simply writes the echo response to the TcpStreams coming
+    // through the channel receiver.
     echo_runtime.spawn(async move {
         println!("echo_runtime.spawn");
         while let Some(mut sock) = rx.recv().await {
