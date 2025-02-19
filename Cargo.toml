@@ -3,6 +3,18 @@ name = "tokio_multi"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "tokio_multi"
+path = "src/bin/tokio_multi.rs"
+
+[[example]]
+name = "echo"
+path = "src/bin/echo.rs"
+
+[[example]]
+name = "simple"
+path = "src/bin/simple.rs"
+
 [dependencies]
 dirs = "5.0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "full"] }

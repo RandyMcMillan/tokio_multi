@@ -44,16 +44,13 @@ pub fn random_seed() -> u64 {
     RandomState::new().build_hasher().finish()
 }
 
-fn nanos() -> Result<(), Box<dyn Error>> {
+fn nanos() -> Result<u32, Box<dyn Error>> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.subsec_nanos();
-
-    // Prints 864479511, 455850730, etc.
-    println!("Random number: {nanos}");
-    Ok(())
+    Ok(nanos)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    //let _ = nanos();
+    println!("{:?}", nanos().unwrap());
     println!("{}", CUSTOM_PORT);
     let cwd = env::current_dir().unwrap();
     let cwd_to_string_lossy: String = String::from(cwd.to_string_lossy());
