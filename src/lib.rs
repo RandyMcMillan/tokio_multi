@@ -1,5 +1,50 @@
+// rustc version 1.77.2
+// tokio version 1.38.0, features: rt-multi-thread, net, io-util
+
+pub use dirs::*;
+pub use std::env;
+pub use std::error::Error;
+pub use std::hash::RandomState;
+pub use std::hash::{BuildHasher, Hasher};
+pub use std::time::{SystemTime, UNIX_EPOCH};
+pub use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    sync::mpsc,
+};
+
+pub const CUSTOM_PORT: usize = 8000;
+
+pub fn prepend<T>(v: Vec<T>, s: &[T]) -> Vec<T>
+where
+    T: Clone,
+{
+    let mut tmp: Vec<_> = s.to_owned();
+    tmp.extend(v);
+    tmp
+}
+
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
+}
+
+pub fn random_numbers() -> impl Iterator<Item = u32> {
+    let mut random = 92u32;
+    std::iter::repeat_with(move || {
+        random ^= random << 13;
+        random ^= random >> 17;
+        random ^= random << 5;
+        random
+    })
+}
+
+pub fn random_seed() -> u64 {
+    RandomState::new().build_hasher().finish()
+}
+
+pub fn nanos() -> Result<u32, Box<dyn Error>> {
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.subsec_nanos();
+    Ok(nanos)
 }
 
 #[cfg(test)]
