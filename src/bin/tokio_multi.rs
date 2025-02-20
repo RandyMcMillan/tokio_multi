@@ -9,9 +9,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     //println!("{}", CUSTOM_PORT);
     let cwd = env::current_dir().unwrap();
     let cwd_to_string_lossy: String = String::from(cwd.to_string_lossy());
-    println!("{}", cwd_to_string_lossy);
+    //println!("{}", cwd_to_string_lossy);
     let local_data_dir = data_local_dir();
-    println!("{}", local_data_dir.expect("REASON").display());
+    //println!("{}", local_data_dir.expect("REASON").display());
     // Create a tokio runtime whose job is to simply accept new incoming TCP connections.
     let acceptor_runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     echo_runtime.spawn(async move {
         //println!("echo_runtime.spawn: {:?}", nanos().unwrap());
         while let Some(mut sock) = rx.recv().await {
-            println!("35:{:?}\nrx.recv().await", nanos().unwrap());
+            //println!("35:{:?}\nrx.recv().await", nanos().unwrap());
             //prepended bytes are lost
             //103, 110, 111, 115, 116, 114
             let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
@@ -54,27 +54,25 @@ fn main() -> Result<(), Box<dyn Error>> {
                 //println!("54:{:?}", nanos().unwrap());
 
                 for num in random_numbers() {
-                    println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
-                    println!("58:millis:{:?}:{}", millis().unwrap(), num);
+                    //println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
+                    //println!("58:millis:{:?}:{}", millis().unwrap(), num);
                 }
 
                 //println!("pre:\n{:?}", &buf);
                 loop {
                     for num in random_numbers() {
-                    println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
-                    println!("58:millis:{:?}:{}", millis().unwrap(), num);
-                }
-
-
+                        //println!("64:nanos:{:?}:{}", nanos().unwrap(), num);
+                        //println!("65:millis:{:?}:{}", millis().unwrap(), num);
+                    }
 
                     let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
 
                     if bytes_read == 0 {
-                        println!("56:bytes_read = {}", bytes_read);
-                        println!("57:{:?}", nanos().unwrap());
+                        //println!("71:bytes_read = {}", bytes_read);
+                        //println!("72:{:?}", nanos().unwrap());
                         return;
                     }
-                    println!("60:{:?}:{}", nanos().unwrap(), bytes_read);
+                    //println!("60:{:?}:{}", nanos().unwrap(), bytes_read);
                     let mut new_buf = prepend(vec![0u8; 512], &buf);
 
                     new_buf.push(b'g'); //last element 32
@@ -93,8 +91,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         })
                         .unwrap();
 
-                    println!("79:{:?}\n{}", nanos().unwrap(), utf8_string);
-
+                    //println!("79:{:?}\n{}", nanos().unwrap(), utf8_string);
                     //buf.push(b'\n');
                 }
             });
@@ -105,8 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // starts accepting new TCP connections. This task just accepts the
     // incoming TcpStreams and are sent to the sender half of the channel.
     acceptor_runtime.block_on(async move {
-        println!("91:acceptor_runtime is started");
-        println!("92:{:?}", nanos().unwrap());
+        println!("105:{:?}:acceptor_runtime is started", nanos().unwrap());
         let listener = match TcpListener::bind("127.0.0.1:8080").await {
             //8080
             Ok(l) => l,
@@ -114,10 +110,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         loop {
-            println!(
-                "101:{:?} acceptor_runtime: loop:listener:8080",
-                nanos().unwrap()
-            );
+            //println!(
+            //    "101:{:?} acceptor_runtime: loop:listener:8080",
+            //    nanos().unwrap()
+            //);
             let sock = match accept_conn(&listener).await {
                 Ok(stream) => stream,
                 Err(e) => panic!("error reading TCP stream: {}", e),
