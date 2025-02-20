@@ -4,6 +4,9 @@ version = "0.1.1"
 edition = "2021"
 
 [[bin]]
+name = "tokio_libp2p-example"
+path = "src/bin/tokio_libp2p-example.rs"
+[[bin]]
 name = "tokio_multi"
 path = "src/bin/tokio_multi.rs"
 
@@ -17,4 +20,10 @@ path = "src/bin/simple.rs"
 
 [dependencies]
 dirs = "5.0.1"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "full"] }
+##tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "full"] }
+clap = { version = "4.5.6", features = ["derive"] }
+tokio = { version = "1.37.0", features = ["full"] }
+futures = { version = "0.3.30" }
+libp2p = { version = "0.54.1", features = ["tokio", "noise", "macros", "ping", "tcp", "identify", "yamux", "relay", "quic"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
