@@ -2,6 +2,7 @@
 // tokio version 1.38.0, features: rt-multi-thread, net, io-util
 
 pub use dirs::*;
+use libp2p::identity;
 pub use std::env;
 pub use std::error::Error;
 pub use std::hash::RandomState;
@@ -12,7 +13,6 @@ pub use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
 };
-use libp2p::identity;
 
 pub const CUSTOM_PORT: u16 = 6102;
 
