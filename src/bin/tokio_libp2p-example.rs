@@ -131,7 +131,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // channel receiver.
         echo_runtime.spawn(async move {
             println!("echo_runtime.spawn: {:?}", nanos().unwrap());
-        //    while let Some(mut sock) = rx.recv().await {
+            while let Some(mut sock) = rx.recv().await {
         //        //println!("35:{:?}\nrx.recv().await", nanos().unwrap());
         //        //prepended bytes are lost
         //        //103, 110, 111, 115, 116, 114
@@ -191,7 +191,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //                //buf.push(b'\n');
         //            }
         //        });
-        //    }
+            }
         });
 
         // acceptor_runtime task is run in a blocking manner, so that our server
