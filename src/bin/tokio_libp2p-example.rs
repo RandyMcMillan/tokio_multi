@@ -154,7 +154,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //                //println!("58:millis:{:?}:{}", millis().unwrap(), num);
         //            }
 
-        //            //println!("pre:\n{:?}", &buf);
+                      println!("pre:\n{:?}", &buf);
         //            loop {
         //                for num in random_numbers() {
         //                    //println!("64:nanos:{:?}:{}", nanos().unwrap(), num);
