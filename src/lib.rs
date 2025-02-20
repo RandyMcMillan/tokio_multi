@@ -31,17 +31,25 @@ pub fn add(left: u64, right: u64) -> u64 {
 pub fn random_numbers() -> impl Iterator<Item = u32> {
     let mut random = 92u32;
     std::iter::repeat_with(move || {
-        random ^= random << 13;
-        random ^= random >> 17;
-        random ^= random << 5;
-        random
+        //std::iter::repeat_with(|| {
+        random ^= &random << 13;
+        random ^= &random >> 17;
+        random ^= &random << 5;
+        random ^ nanos().unwrap() ^ millis().unwrap()
     })
+    .take(10)
 }
 
 pub fn random_seed() -> u64 {
     RandomState::new().build_hasher().finish()
 }
 
+pub fn millis() -> Result<u32, Box<dyn Error>> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)?
+        .subsec_millis();
+    Ok(millis)
+}
 pub fn nanos() -> Result<u32, Box<dyn Error>> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.subsec_nanos();
     Ok(nanos)

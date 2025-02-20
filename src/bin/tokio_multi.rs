@@ -1,7 +1,11 @@
 use tokio_multi::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    //println!("{:?}", nanos().unwrap());
+    //for num in random_numbers() {
+    //    println!("6:{:?}:{}", nanos().unwrap(), num);
+    //    println!("7:{:?}:{}", millis().unwrap(), num);
+    //}
+
     //println!("{}", CUSTOM_PORT);
     let cwd = env::current_dir().unwrap();
     let cwd_to_string_lossy: String = String::from(cwd.to_string_lossy());
@@ -47,9 +51,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             buf.push(b'g'); //last element 114
                             //println!("post:buf.push:\n{:?}", &buf);
             tokio::spawn(async move {
-                println!("50:{:?}", nanos().unwrap());
+                //println!("54:{:?}", nanos().unwrap());
+
+                for num in random_numbers() {
+                    println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
+                    println!("58:millis:{:?}:{}", millis().unwrap(), num);
+                }
+
                 //println!("pre:\n{:?}", &buf);
                 loop {
+                    for num in random_numbers() {
+                    println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
+                    println!("58:millis:{:?}:{}", millis().unwrap(), num);
+                }
+
+
+
                     let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
 
                     if bytes_read == 0 {
@@ -57,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         println!("57:{:?}", nanos().unwrap());
                         return;
                     }
-                    //println!("{:?}:{}", nanos().unwrap(), bytes_read);
+                    println!("60:{:?}:{}", nanos().unwrap(), bytes_read);
                     let mut new_buf = prepend(vec![0u8; 512], &buf);
 
                     new_buf.push(b'g'); //last element 32
