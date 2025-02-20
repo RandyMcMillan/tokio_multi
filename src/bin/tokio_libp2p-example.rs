@@ -33,7 +33,7 @@ struct Opt {
     secret_key_seed: u8,
 
     /// The port used to listen on all interfaces
-    #[clap(long)]
+    #[clap(long, default_value = "3001")]
     port: u16,
 }
 
@@ -199,24 +199,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // incoming TcpStreams and are sent to the sender half of the channel.
         acceptor_runtime.spawn(async move {
               println!("201:{:?}:acceptor_runtime is started", nanos().unwrap());
-              let listener = match TcpListener::bind("127.0.0.1:8080").await {
-                  //8080
+              let listener = match TcpListener::bind(format!("127.0.0.1:{}", "0")).await {
+                  //8081
                   Ok(l) => l,
                   Err(e) => panic!("error binding TCP listener: {}", e),
               };
 
-        //    loop {
-        //        //println!(
-        //        //    "101:{:?} acceptor_runtime: loop:listener:8080",
-        //        //    nanos().unwrap()
-        //        //);
+              loop {
+                  //println!(
+                  //    "101:{:?} acceptor_runtime: loop:listener:8080",
+                  //    nanos().unwrap()
+                  //);
 
-        //        //let sock = match accept_conn(&listener).await {
-        //        //    Ok(stream) => stream,
-        //        //    Err(e) => panic!("error reading TCP stream: {}", e),
-        //        //};
-        //        //let _ = tx.send(sock).await;
-        //    }
+                  //let sock = match accept_conn(&listener).await {
+                  //    Ok(stream) => stream,
+                  //    Err(e) => panic!("error reading TCP stream: {}", e),
+                  //};
+                  //let _ = tx.send(sock).await;
+              }
         });
 
 
@@ -326,7 +326,7 @@ async fn sevices() -> Result<(), Box<dyn Error>> {
     // incoming TcpStreams and are sent to the sender half of the channel.
     acceptor_runtime.block_on(async move {
         println!("105:{:?}:acceptor_runtime is started", nanos().unwrap());
-        let listener = match TcpListener::bind("127.0.0.1:8080").await {
+        let listener = match TcpListener::bind("127.0.0.1:8081").await {
             //8080
             Ok(l) => l,
             Err(e) => panic!("error binding TCP listener: {}", e),
