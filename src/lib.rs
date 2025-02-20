@@ -12,6 +12,7 @@ pub use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
 };
+use libp2p::identity;
 
 pub const CUSTOM_PORT: usize = 8000;
 
@@ -42,6 +43,13 @@ pub fn random_numbers() -> impl Iterator<Item = u32> {
 
 pub fn random_seed() -> u64 {
     RandomState::new().build_hasher().finish()
+}
+
+pub fn generate_ed25519(secret_key_seed: u8) -> identity::Keypair {
+    let mut bytes = [0u8; 32];
+    bytes[0] = secret_key_seed;
+
+    identity::Keypair::ed25519_from_bytes(bytes).expect("only errors on wrong length")
 }
 
 pub fn millis() -> Result<u32, Box<dyn Error>> {
