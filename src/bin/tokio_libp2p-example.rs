@@ -29,7 +29,7 @@ struct Opt {
     use_ipv6: Option<bool>,
 
     /// Fixed value to generate deterministic peer id
-    #[clap(long)]
+    #[clap(long, default_value = "0")]
     secret_key_seed: u8,
 
     /// The port used to listen on all interfaces
@@ -47,6 +47,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a static known PeerId based on given secret
     let local_key: identity::Keypair = generate_ed25519(opt.secret_key_seed);
+	println!("{:#?}", local_key.public());
 
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
         .with_tokio()
