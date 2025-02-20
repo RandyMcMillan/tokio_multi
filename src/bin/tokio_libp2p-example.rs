@@ -130,22 +130,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // This task simply writes the echo response to the TcpStreams coming through the
         // channel receiver.
         echo_runtime.spawn(async move {
-            println!("echo_runtime.spawn: {:?}", nanos().unwrap());
+            println!("133:echo_runtime.spawn: {:?}", nanos().unwrap());
             while let Some(mut sock) = rx.recv().await {
-                  println!("35:{:?}\nrx.recv().await", nanos().unwrap());
+                  println!("135:{:?}\nrx.recv().await", nanos().unwrap());
         //        //prepended bytes are lost
         //        //103, 110, 111, 115, 116, 114
-        //        let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
-        //        //println!("pre:buf.push:\n{:?}", &buf);
+                  let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
+                  println!("139:pre:buf.push:\n{:?}", &buf);
         //        //gnostr bytes
         //        //114, 116, 115, 111, 110, 103
-        //        buf.push(b'r'); //last element 103
-        //        buf.push(b't'); //last element 110
-        //        buf.push(b's'); //last element 111
-        //        buf.push(b'o'); //last element 115
-        //        buf.push(b'n'); //last element 116
-        //        buf.push(b'g'); //last element 114
-        //                        //println!("post:buf.push:\n{:?}", &buf);
+                  buf.push(b'r'); //last element 103
+                  buf.push(b't'); //last element 110
+                  buf.push(b's'); //last element 111
+                  buf.push(b'o'); //last element 115
+                  buf.push(b'n'); //last element 116
+                  buf.push(b'g'); //last element 114
+                  println!("148:post:buf.push:\n{:?}", &buf);
         //        tokio::spawn(async move {
         //            //println!("54:{:?}", nanos().unwrap());
 
@@ -197,13 +197,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // acceptor_runtime task is run in a blocking manner, so that our server
         // starts accepting new TCP connections. This task just accepts the
         // incoming TcpStreams and are sent to the sender half of the channel.
-        //acceptor_runtime.spawn(async move {
-        //    println!("105:{:?}:acceptor_runtime is started", nanos().unwrap());
-        //    //let listener = match TcpListener::bind("127.0.0.1:8080").await {
-        //    //    //8080
-        //    //    Ok(l) => l,
-        //    //    Err(e) => panic!("error binding TCP listener: {}", e),
-        //    //};
+        acceptor_runtime.spawn(async move {
+              println!("201:{:?}:acceptor_runtime is started", nanos().unwrap());
+              let listener = match TcpListener::bind("127.0.0.1:8080").await {
+                  //8080
+                  Ok(l) => l,
+                  Err(e) => panic!("error binding TCP listener: {}", e),
+              };
 
         //    loop {
         //        //println!(
@@ -217,7 +217,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //        //};
         //        //let _ = tx.send(sock).await;
         //    }
-        //});
+        });
 
 
     }//end loop
@@ -257,7 +257,7 @@ async fn sevices() -> Result<(), Box<dyn Error>> {
     // This task simply writes the echo response to the TcpStreams coming through the
     // channel receiver.
     echo_runtime.spawn(async move {
-        //println!("echo_runtime.spawn: {:?}", nanos().unwrap());
+        println!("echo_runtime.spawn: {:?}", nanos().unwrap());
         while let Some(mut sock) = rx.recv().await {
             println!("262:{:?}\nrx.recv().await", nanos().unwrap());
             //prepended bytes are lost
@@ -272,7 +272,7 @@ async fn sevices() -> Result<(), Box<dyn Error>> {
             buf.push(b'o'); //last element 115
             buf.push(b'n'); //last element 116
             buf.push(b'g'); //last element 114
-                            //println!("post:buf.push:\n{:?}", &buf);
+            println!("post:buf.push:\n{:?}", &buf);
             tokio::spawn(async move {
                 println!("277:{:?}", nanos().unwrap());
 
