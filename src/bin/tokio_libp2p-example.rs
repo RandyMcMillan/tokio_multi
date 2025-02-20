@@ -1,8 +1,8 @@
-use tokio_multi::*;
 use std::{
     error::Error,
     net::{Ipv4Addr, Ipv6Addr},
 };
+use tokio_multi::*;
 
 use clap::Parser;
 use futures::StreamExt;
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a static known PeerId based on given secret
     let local_key: identity::Keypair = generate_ed25519(opt.secret_key_seed);
-	println!("{:#?}", local_key.public());
+    println!("{:#?}", local_key.public());
 
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
         .with_tokio()
@@ -85,12 +85,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with(Protocol::QuicV1);
     swarm.listen_on(listen_addr_quic)?;
 
-
     // Create a tokio runtime whose job is to simply accept new incoming TCP connections.
     let acceptor_runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .thread_name("acceptor-pool")
-        .enable_io()
+        .enable_all()
         .build()?;
 
     // Create another tokio runtime whose job is only to write the response bytes to the outgoing TCP message.
@@ -101,6 +100,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     loop {
+        // this channel is used to pass the TcpStream from acceptor_runtime task to
+        // to echo_runtime task where the request handling is done.
+        let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
+
         match swarm.next().await.expect("Infinite Stream.") {
             SwarmEvent::Behaviour(event) => {
                 if let BehaviourEvent::Identify(identify::Event::Received {
@@ -117,14 +120,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Listening on {address:?}");
             }
             _ => {}
-		}//end match
-		//more...
-		//println!("more...");
-
-
-        // this channel is used to pass the TcpStream from acceptor_runtime task to
-        // to echo_runtime task where the request handling is done.
-		let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
+        } //end match
+          //more...
+          //println!("more...");
 
         // The receiver part of the channel is moved inside a echo_runtime task.
         // This task simply writes the echo response to the TcpStreams coming through the
@@ -132,65 +130,65 @@ async fn main() -> Result<(), Box<dyn Error>> {
         echo_runtime.spawn(async move {
             println!("133:echo_runtime.spawn: {:?}", nanos().unwrap());
             while let Some(mut sock) = rx.recv().await {
-                  println!("135:{:?}\nrx.recv().await", nanos().unwrap());
-        //        //prepended bytes are lost
-        //        //103, 110, 111, 115, 116, 114
-                  let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
-                  println!("139:pre:buf.push:\n{:?}", &buf);
-        //        //gnostr bytes
-        //        //114, 116, 115, 111, 110, 103
-                  buf.push(b'r'); //last element 103
-                  buf.push(b't'); //last element 110
-                  buf.push(b's'); //last element 111
-                  buf.push(b'o'); //last element 115
-                  buf.push(b'n'); //last element 116
-                  buf.push(b'g'); //last element 114
-                  println!("148:post:buf.push:\n{:?}", &buf);
-                  tokio::spawn(async move {
-                      println!("150:{:?}", nanos().unwrap());
+                println!("135:{:?}\nrx.recv().await", nanos().unwrap());
+                //        //prepended bytes are lost
+                //        //103, 110, 111, 115, 116, 114
+                let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
+                println!("139:pre:buf.push:\n{:?}", &buf);
+                //        //gnostr bytes
+                //        //114, 116, 115, 111, 110, 103
+                buf.push(b'r'); //last element 103
+                buf.push(b't'); //last element 110
+                buf.push(b's'); //last element 111
+                buf.push(b'o'); //last element 115
+                buf.push(b'n'); //last element 116
+                buf.push(b'g'); //last element 114
+                println!("148:post:buf.push:\n{:?}", &buf);
+                tokio::spawn(async move {
+                    println!("150:{:?}", nanos().unwrap());
 
-        //            for num in random_numbers() {
-        //                //println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
-        //                //println!("58:millis:{:?}:{}", millis().unwrap(), num);
-        //            }
+                    for num in random_numbers() {
+                        println!("152:nanos:{:?}:{}", nanos().unwrap(), num);
+                        //println!("58:millis:{:?}:{}", millis().unwrap(), num);
+                    }
 
-                      println!("pre:\n{:?}", &buf);
-        //            loop {
-        //                for num in random_numbers() {
-        //                    //println!("64:nanos:{:?}:{}", nanos().unwrap(), num);
-        //                    //println!("65:millis:{:?}:{}", millis().unwrap(), num);
-        //                }
+                    println!("pre:\n{:?}", &buf);
+                    //            loop {
+                    //                for num in random_numbers() {
+                    //                    //println!("64:nanos:{:?}:{}", nanos().unwrap(), num);
+                    //                    //println!("65:millis:{:?}:{}", millis().unwrap(), num);
+                    //                }
 
-        //                let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
+                    //                let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
 
-        //                if bytes_read == 0 {
-        //                    //println!("71:bytes_read = {}", bytes_read);
-        //                    //println!("72:{:?}", nanos().unwrap());
-        //                    return;
-        //                }
-        //                //println!("60:{:?}:{}", nanos().unwrap(), bytes_read);
-        //                let mut new_buf = prepend(vec![0u8; 512], &buf);
+                    //                if bytes_read == 0 {
+                    //                    //println!("71:bytes_read = {}", bytes_read);
+                    //                    //println!("72:{:?}", nanos().unwrap());
+                    //                    return;
+                    //                }
+                    //                //println!("60:{:?}:{}", nanos().unwrap(), bytes_read);
+                    //                let mut new_buf = prepend(vec![0u8; 512], &buf);
 
-        //                new_buf.push(b'g'); //last element 32
-        //                new_buf.push(b'n'); //last element 32
-        //                new_buf.push(b'o'); //last element 32
-        //                new_buf.push(b's'); //last element 32
-        //                new_buf.push(b't'); //last element 32
-        //                new_buf.push(b'r'); //last element 32
-        //                sock.write_all(&new_buf[0..bytes_read + 3])
-        //                    .await
-        //                    .expect("failed to write response");
-        //                //println!("{:?}:post:{:?}", nanos().unwrap(), new_buf);
-        //                let utf8_string = String::from_utf8(new_buf)
-        //                    .map_err(|non_utf8| {
-        //                        String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
-        //                    })
-        //                    .unwrap();
+                    //                new_buf.push(b'g'); //last element 32
+                    //                new_buf.push(b'n'); //last element 32
+                    //                new_buf.push(b'o'); //last element 32
+                    //                new_buf.push(b's'); //last element 32
+                    //                new_buf.push(b't'); //last element 32
+                    //                new_buf.push(b'r'); //last element 32
+                    //                sock.write_all(&new_buf[0..bytes_read + 3])
+                    //                    .await
+                    //                    .expect("failed to write response");
+                    //                //println!("{:?}:post:{:?}", nanos().unwrap(), new_buf);
+                    //                let utf8_string = String::from_utf8(new_buf)
+                    //                    .map_err(|non_utf8| {
+                    //                        String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
+                    //                    })
+                    //                    .unwrap();
 
-        //                //println!("79:{:?}\n{}", nanos().unwrap(), utf8_string);
-        //                //buf.push(b'\n');
-        //            }
-                  });
+                    //                //println!("79:{:?}\n{}", nanos().unwrap(), utf8_string);
+                    //                //buf.push(b'\n');
+                    //            }
+                });
             }
         });
 
@@ -198,36 +196,44 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // starts accepting new TCP connections. This task just accepts the
         // incoming TcpStreams and are sent to the sender half of the channel.
         acceptor_runtime.spawn(async move {
-              println!("201:{:?}:acceptor_runtime is started", nanos().unwrap());
-              let listener = match TcpListener::bind(format!("127.0.0.1:{}", 0)).await {
-                  //8081
-                  Ok(l) => l,
-                  Err(e) => panic!("error binding TCP listener: {}:{}", e, 8080),
-              };
+            println!("202:{:?}:acceptor_runtime is started", nanos().unwrap());
 
-              loop {
-                  //println!(
-                  //    "101:{:?} acceptor_runtime: loop:listener:8080",
-                  //    nanos().unwrap()
-                  //);
+            //TODO detect if desired port is available
+            //detect opt.port+1 is avail else
+            let listener = match TcpListener::bind(format!("127.0.0.1:{}", 0)).await {
+                //8081
+                Ok(l) => l,
+                Err(e) => panic!("error binding TCP listener: {}:{}", e, 8081),
+            };
 
-                  //let sock = match accept_conn(&listener).await {
-                  //    Ok(stream) => stream,
-                  //    Err(e) => panic!("error reading TCP stream: {}", e),
-                  //};
-                  //let _ = tx.send(sock).await;
-              }
+            loop {
+                println!(
+                    "210:{:?} acceptor_runtime: loop:listener:{}",
+                    nanos().unwrap(),
+                    listener.local_addr().unwrap()
+                );
+
+                let sock = match accept_conn(&listener).await {
+                    Ok(stream) => stream,
+                    Err(e) => panic!("error reading TCP stream: {}", e),
+                };
+                let _ = tx.send(sock).await;
+            }
         });
-
-
-    }//end loop
+    } //end loop
 }
 
 async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>> {
     println!(
-        "129:{:?}:{:?}:accept_conn",
+        "228:{:?}:{:?}:accept_conn",
         millis().unwrap(),
         nanos().unwrap()
+    );
+    println!(
+        "230:{:?}{:?} accept_conn: loop:listener:{}",
+        millis().unwrap(),
+        nanos().unwrap(),
+        listener.local_addr().unwrap()
     );
     match listener.accept().await {
         Ok((sock, _)) => Ok(sock),
