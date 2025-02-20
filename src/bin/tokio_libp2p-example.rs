@@ -132,7 +132,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         echo_runtime.spawn(async move {
             println!("echo_runtime.spawn: {:?}", nanos().unwrap());
             while let Some(mut sock) = rx.recv().await {
-        //        //println!("35:{:?}\nrx.recv().await", nanos().unwrap());
+                  println!("35:{:?}\nrx.recv().await", nanos().unwrap());
         //        //prepended bytes are lost
         //        //103, 110, 111, 115, 116, 114
         //        let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
@@ -259,7 +259,7 @@ async fn sevices() -> Result<(), Box<dyn Error>> {
     echo_runtime.spawn(async move {
         //println!("echo_runtime.spawn: {:?}", nanos().unwrap());
         while let Some(mut sock) = rx.recv().await {
-            //println!("35:{:?}\nrx.recv().await", nanos().unwrap());
+            println!("262:{:?}\nrx.recv().await", nanos().unwrap());
             //prepended bytes are lost
             //103, 110, 111, 115, 116, 114
             let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
@@ -274,7 +274,7 @@ async fn sevices() -> Result<(), Box<dyn Error>> {
             buf.push(b'g'); //last element 114
                             //println!("post:buf.push:\n{:?}", &buf);
             tokio::spawn(async move {
-                //println!("54:{:?}", nanos().unwrap());
+                println!("277:{:?}", nanos().unwrap());
 
                 for num in random_numbers() {
                     //println!("57:nanos:{:?}:{}", nanos().unwrap(), num);
