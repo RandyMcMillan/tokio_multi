@@ -14,7 +14,7 @@ pub use tokio::{
 };
 use libp2p::identity;
 
-pub const CUSTOM_PORT: usize = 8000;
+pub const CUSTOM_PORT: u16 = 6102;
 
 pub fn prepend<T>(v: Vec<T>, s: &[T]) -> Vec<T>
 where
