@@ -126,7 +126,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>> {
-    println!("129:{:?}:{:?}:accept_conn", millis().unwrap(), nanos().unwrap());
+    println!(
+        "129:{:?}:{:?}:accept_conn",
+        millis().unwrap(),
+        nanos().unwrap()
+    );
     match listener.accept().await {
         Ok((sock, _)) => Ok(sock),
         Err(e) => panic!("error accepting connection: {}", e),
