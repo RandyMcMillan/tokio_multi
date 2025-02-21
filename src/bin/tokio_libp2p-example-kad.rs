@@ -57,7 +57,7 @@ use tokio_multi::message::{GreeRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    Builder::from_env(Env::default().default_filter_or("debug")).init();
+    Builder::from_env(Env::default().default_filter_or("trace")).init();
 
     let local_key = identity::Keypair::generate_ed25519();
 
@@ -123,9 +123,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 established_in } => info!("ConnectionEstablished: {peer_id} | {connection_id} | {endpoint:?} | {num_established} | {concurrent_dial_errors:?} | {established_in:?}"),
             SwarmEvent::Dialing { peer_id, connection_id } => info!("Dialing: {peer_id:?} | {connection_id}"),
             SwarmEvent::Behaviour(AgentEvent::Identify(event)) => match event {
-                IdentifyEvent::Sent { peer_id } => info!("IdentifyEvent:Sent: {peer_id}"),
-                IdentifyEvent::Pushed { peer_id, info } => info!("IdentifyEvent:Pushed: {peer_id} | {info:?}"),
-                IdentifyEvent::Received { peer_id, info } => {
+                IdentifyEvent::Sent { peer_id, .. } => info!("IdentifyEvent:Sent: {peer_id}"),
+                IdentifyEvent::Pushed { peer_id, info, .. } => info!("IdentifyEvent:Pushed: {peer_id} | {info:?}"),
+                //IdentifyEvent::Received { peer_id, info } => {
+				//IdentifyEvent::Received { peer_id, info, connection_id } => {
+				IdentifyEvent::Received { peer_id, info, .. } => {
                     info!("IdentifyEvent:Received: {peer_id} | {info:?}");
                     peers.insert(peer_id, info.clone().listen_addrs);    
 
