@@ -14,6 +14,9 @@ pub use tokio::{
     sync::mpsc,
 };
 
+pub mod message;
+pub mod behavior;
+
 pub const CUSTOM_PORT: u16 = 6102;
 
 pub fn prepend<T>(v: Vec<T>, s: &[T]) -> Vec<T>
