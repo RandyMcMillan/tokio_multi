@@ -60,6 +60,7 @@ default:
 tokio_libp2p-example:
   @just exec "cargo b --bin tokio_libp2p-example"
   @just exec "cargo run --bin tokio_libp2p-example" 
+
 @exec *args='':
   bash -c 'while (( "$#" )); do $1; shift; done' -- "$@"
 

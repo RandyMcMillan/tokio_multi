@@ -14,8 +14,8 @@ pub use tokio::{
     sync::mpsc,
 };
 
-pub mod message;
 pub mod behavior;
+pub mod message;
 
 pub const CUSTOM_PORT: u16 = 6102;
 

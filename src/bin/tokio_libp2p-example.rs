@@ -1,242 +1,214 @@
-use std::{
-    error::Error,
-    net::{Ipv4Addr, Ipv6Addr},
-};
 use tokio_multi::*;
 
-use clap::Parser;
-use futures::StreamExt;
+use std::collections::HashMap;
+use std::env::args;
+use std::error::Error;
+use std::time::Duration;
+
+use env_logger::{Builder, Env};
+use log::{error, info, warn};
+use tokio;
+
 use libp2p::{
-    core::{multiaddr::Protocol, Multiaddr},
-    identify, identity, noise, ping, relay,
-    swarm::{NetworkBehaviour, SwarmEvent},
-    tcp, yamux,
+    identity, tcp::Config as TcpConfig, yamux::Config as YamuxConfig, Multiaddr, PeerId,
+    StreamProtocol, SwarmBuilder,
 };
-use tracing_subscriber::EnvFilter;
 
-#[derive(NetworkBehaviour)]
-struct Behaviour {
-    relay: relay::Behaviour,
-    ping: ping::Behaviour,
-    identify: identify::Behaviour,
-}
+use libp2p::futures::StreamExt;
+use libp2p::noise::Config as NoiceConfig;
+use libp2p::swarm::SwarmEvent;
 
-#[derive(Debug, Parser)]
-#[clap(name = "gnostr p2p-relay")]
-struct Opt {
-    /// Determine if the relay listen on ipv6 or ipv4 loopback address. the default is ipv4
-    #[clap(long)]
-    use_ipv6: Option<bool>,
+use libp2p::identify::{
+    Behaviour as IdentifyBehavior, Config as IdentifyConfig, Event as IdentifyEvent,
+};
 
-    /// Fixed value to generate deterministic peer id
-    #[clap(long, default_value = "0")]
-    secret_key_seed: u8,
+use libp2p::kad::{
+    store::MemoryStore as KadInMemory, Behaviour as KadBehavior, Config as KadConfig,
+    Event as KadEvent, RoutingUpdate,
+};
 
-    /// The port used to listen on all interfaces
-    #[clap(long, default_value = "6102")]
-    port: u16,
-}
+use libp2p::request_response::{
+    Config as RequestResponseConfig, Event as RequestResponseEvent,
+    Message as RequestResponseMessage, ProtocolSupport as RequestResponseProtocolSupport,
+};
+
+use libp2p::request_response::cbor::Behaviour as RequestResponseBehavior;
+
+//mod behavior;
+use tokio_multi::behavior::{Behavior as AgentBehavior, Event as AgentEvent};
+
+//mod message;
+use tokio_multi::message::{GreeRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .try_init();
+    Builder::from_env(Env::default().default_filter_or("debug")).init();
 
-    let opt = Opt::parse();
+    let local_key = identity::Keypair::generate_ed25519();
 
-    // Create a static known PeerId based on given secret
-    let local_key: identity::Keypair = generate_ed25519(opt.secret_key_seed);
-    println!("{:#?}", local_key.public());
-
-    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
+    let mut swarm = SwarmBuilder::with_existing_identity(local_key.clone())
         .with_tokio()
-        .with_tcp(
-            tcp::Config::default(),
-            noise::Config::new,
-            yamux::Config::default,
-        )?
-        .with_quic()
-        .with_behaviour(|key| Behaviour {
-            relay: relay::Behaviour::new(key.public().to_peer_id(), Default::default()),
-            ping: ping::Behaviour::new(ping::Config::new()),
-            identify: identify::Behaviour::new(identify::Config::new(
-                "/TODO/0.0.1".to_string(),
-                key.public(),
-            )),
+        .with_tcp(TcpConfig::default(), NoiceConfig::new, YamuxConfig::default)?
+        .with_behaviour(|key| {
+            let local_peer_id = PeerId::from(key.clone().public());
+            info!("LocalPeerID: {local_peer_id}");
+
+            let mut kad_config = KadConfig::default();
+            kad_config.set_protocol_names(vec![StreamProtocol::new("/agent/connection/1.0.0")]);
+
+            let kad_memory = KadInMemory::new(local_peer_id);
+            let kad = KadBehavior::with_config(local_peer_id, kad_memory, kad_config);
+
+            let identity_config =
+                IdentifyConfig::new("/agent/connection/1.0.0".to_string(), key.clone().public())
+                    .with_push_listen_addr_updates(true)
+                    .with_interval(Duration::from_secs(1)); //TODO cli arg
+
+            let rr_config = RequestResponseConfig::default();
+            let rr_protocol = StreamProtocol::new("/agent/message/1.0.0");
+            let rr_behavior = RequestResponseBehavior::<GreeRequest, GreetResponse>::new(
+                [(rr_protocol, RequestResponseProtocolSupport::Full)],
+                rr_config,
+            );
+
+            let identify = IdentifyBehavior::new(identity_config);
+            AgentBehavior::new(kad, identify, rr_behavior)
         })?
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(10)))
         .build();
 
-    // Listen on all interfaces
-    let listen_addr_tcp = Multiaddr::empty()
-        .with(match opt.use_ipv6 {
-            Some(true) => Protocol::from(Ipv6Addr::UNSPECIFIED),
-            _ => Protocol::from(Ipv4Addr::UNSPECIFIED),
-        })
-        .with(Protocol::Tcp(opt.port));
-    swarm.listen_on(listen_addr_tcp)?;
+    swarm.behaviour_mut().set_server_mode();
 
-    let listen_addr_quic = Multiaddr::empty()
-        .with(match opt.use_ipv6 {
-            Some(true) => Protocol::from(Ipv6Addr::UNSPECIFIED),
-            _ => Protocol::from(Ipv4Addr::UNSPECIFIED),
-        })
-        .with(Protocol::Udp(opt.port))
-        .with(Protocol::QuicV1);
-    swarm.listen_on(listen_addr_quic)?;
+    if let Some(addr) = args().nth(1) {
+        swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
 
-    // Create a tokio runtime whose job is to simply accept new incoming TCP connections.
-    let acceptor_runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(2)
-        .thread_name("acceptor-pool")
-        .enable_all()
-        .build()?;
+        let remote: Multiaddr = addr.parse()?;
+        swarm.dial(remote)?;
+        info!("Dialed to: {addr}");
+    } else {
+        info!("Act as bootstrap node");
+        swarm.listen_on("/ip4/0.0.0.0/tcp/6102".parse()?)?;
+    }
 
-    // Create another tokio runtime whose job is only to write the response bytes to the outgoing TCP message.
-    let echo_runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(8)
-        .thread_name("echo-handler-pool")
-        .enable_all()
-        .build()?;
-
+    let mut peers: HashMap<PeerId, Vec<Multiaddr>> = HashMap::new();
     loop {
-        // this channel is used to pass the TcpStream from acceptor_runtime task to
-        // to echo_runtime task where the request handling is done.
-        let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
+        match swarm.select_next_some().await {
+            SwarmEvent::NewListenAddr { listener_id, address } => info!("NewListenAddr: {listener_id:?} | {address:?}"),
+            SwarmEvent::ConnectionEstablished {
+                peer_id,
+                connection_id,
+                endpoint,
+                num_established,
+                concurrent_dial_errors,
+                established_in } => info!("\n\nConnectionEstablished: {peer_id} | {connection_id} | {endpoint:?} | {num_established} | {concurrent_dial_errors:?} | {established_in:?}\n\n"),
+            SwarmEvent::Dialing { peer_id, connection_id } => info!("Dialing: {peer_id:?} | {connection_id}"),
+            SwarmEvent::Behaviour(AgentEvent::Identify(event)) => match event {
+                IdentifyEvent::Sent { peer_id, .. } => info!("IdentifyEvent:Sent: {peer_id}"),
+                IdentifyEvent::Pushed { peer_id, info, .. } => info!("IdentifyEvent:Pushed: {peer_id} | {info:?}"),
+                //IdentifyEvent::Received { peer_id, info } => {
+				//IdentifyEvent::Received { peer_id, info, connection_id } => {
+				IdentifyEvent::Received { peer_id, info, .. } => {
+                    info!("IdentifyEvent:Received: {peer_id} | {info:?}");
+                    peers.insert(peer_id, info.clone().listen_addrs);
 
-        match swarm.next().await.expect("Infinite Stream.") {
-            SwarmEvent::Behaviour(event) => {
-                if let BehaviourEvent::Identify(identify::Event::Received {
-                    info: identify::Info { observed_addr, .. },
-                    ..
-                }) = &event
-                {
-                    swarm.add_external_address(observed_addr.clone());
-                }
+                    for addr in info.clone().listen_addrs {
+                    info!("addr: {addr} | {info:?}");
+                    info!("info: {info:?}");
+                        let agent_routing = swarm.behaviour_mut().register_addr_kad(&peer_id, addr.clone());
+                        match agent_routing {
+                            RoutingUpdate::Failed => error!("IdentifyReceived: Failed to register address to Kademlia"),
+                            RoutingUpdate::Pending => warn!("IdentifyReceived: Register address pending"),
+                            RoutingUpdate::Success => {
+                                info!("IdentifyReceived: {addr}: Success register address");
+                            }
+                        }
 
-                println!("{event:?}")
-            }
-            SwarmEvent::NewListenAddr { address, .. } => {
-                println!("Listening on {address:?}");
-            }
-            _ => {}
-        } //end match
-          //more...
-          //println!("more...");
+                        _ = swarm.behaviour_mut().register_addr_rr(&peer_id, addr.clone());
 
-        // The receiver part of the channel is moved inside a echo_runtime task.
-        // This task simply writes the echo response to the TcpStreams coming through the
-        // channel receiver.
-        echo_runtime.spawn(async move {
-            println!("133:echo_runtime.spawn: {:?}", nanos().unwrap());
-            while let Some(mut sock) = rx.recv().await {
-                println!("135:{:?}\nrx.recv().await", nanos().unwrap());
-                //        //prepended bytes are lost
-                //        //103, 110, 111, 115, 116, 114
-                let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
-                println!("139:pre:buf.push:\n{:?}", &buf);
-                //        //gnostr bytes
-                //        //114, 116, 115, 111, 110, 103
-                buf.push(b'r'); //last element 103
-                buf.push(b't'); //last element 110
-                buf.push(b's'); //last element 111
-                buf.push(b'o'); //last element 115
-                buf.push(b'n'); //last element 116
-                buf.push(b'g'); //last element 114
-                println!("148:post:buf.push:\n{:?}", &buf);
-                tokio::spawn(async move {
-                    println!("150:{:?}", nanos().unwrap());
-
-                    for num in random_numbers() {
-                        println!("152:nanos:{:?}:{}", nanos().unwrap(), num);
-                        //println!("58:millis:{:?}:{}", millis().unwrap(), num);
+                        let local_peer_id = local_key.public().to_peer_id();
+						//GreeRequest
+                        let message = GreeRequest{ message: format!("Send message from: {local_peer_id}: Hello gnostr!!!") };
+                        let request_id = swarm.behaviour_mut().send_message(&peer_id, message);
+                        info!("RequestID: {request_id}")
                     }
 
-                    println!("pre:\n{:?}", &buf);
-                    //            loop {
-                    //                for num in random_numbers() {
-                    //                    //println!("64:nanos:{:?}:{}", nanos().unwrap(), num);
-                    //                    //println!("65:millis:{:?}:{}", millis().unwrap(), num);
-                    //                }
+                    info!("Available peers: {peers:?}");
 
-                    //                let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
+                },
+                _ => {}
+            },
+            SwarmEvent::Behaviour(AgentEvent::RequestResponse(event)) => match event {
+                RequestResponseEvent::Message { peer, message } => {
+                    match message {
+                        RequestResponseMessage::Request { request_id, request, channel} => {
 
-                    //                if bytes_read == 0 {
-                    //                    //println!("71:bytes_read = {}", bytes_read);
-                    //                    //println!("72:{:?}", nanos().unwrap());
-                    //                    return;
-                    //                }
-                    //                //println!("60:{:?}:{}", nanos().unwrap(), bytes_read);
-                    //                let mut new_buf = prepend(vec![0u8; 512], &buf);
 
-                    //                new_buf.push(b'g'); //last element 32
-                    //                new_buf.push(b'n'); //last element 32
-                    //                new_buf.push(b'o'); //last element 32
-                    //                new_buf.push(b's'); //last element 32
-                    //                new_buf.push(b't'); //last element 32
-                    //                new_buf.push(b'r'); //last element 32
-                    //                sock.write_all(&new_buf[0..bytes_read + 3])
-                    //                    .await
-                    //                    .expect("failed to write response");
-                    //                //println!("{:?}:post:{:?}", nanos().unwrap(), new_buf);
-                    //                let utf8_string = String::from_utf8(new_buf)
-                    //                    .map_err(|non_utf8| {
-                    //                        String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
-                    //                    })
-                    //                    .unwrap();
+                            info!("\n\nRequestResponseEvent::Message::Request -> PeerID: {peer} | RequestID: {request_id} | RequestMessage: \n\n{request:?}\n\n");
 
-                    //                //println!("79:{:?}\n{}", nanos().unwrap(), utf8_string);
-                    //                //buf.push(b'\n');
-                    //            }
-                });
+
+                            let local_peer_id = local_key.public().to_peer_id();
+                            let response = GreetResponse{ message: format!("Response from: {local_peer_id}: hello gnostr too!!!").to_string() };
+
+
+                            let result = swarm.behaviour_mut().send_response(channel, response);
+                            if result.is_err() {
+                                let err = result.unwrap_err();
+                                error!("Error sending response: {err:?}")
+                            } else {
+
+
+                                info!("\n\n\nSending a gnostr message was success!!!\n\n")
+
+
+                            }
+                        },
+                        RequestResponseMessage::Response { request_id, response } => {
+
+
+                            info!("\n\n\nRequestResponseEvent::Message::Response -> PeerID: {peer} | RequestID: {request_id} | Response: \n\n{response:?}\n\n")
+
+
+                        }
+                    }
+                },
+                RequestResponseEvent::InboundFailure { peer, request_id, error } => {
+                    warn!("RequestResponseEvent::InboundFailure -> PeerID: {peer} | RequestID: {request_id} | Error: {error}")
+                },
+                RequestResponseEvent::ResponseSent { peer, request_id } => {
+
+
+                    info!("\n\n\nRequestResponseEvent::ResponseSent -> PeerID: {peer} | RequestID: {request_id}\n\n")
+
+
+                },
+                RequestResponseEvent::OutboundFailure { peer, request_id, error } => {
+                    warn!("RequestResponseEvent::OutboundFailure -> PeerID: {peer} | RequestID: {request_id} | Error: {error}")
+                }
+            },
+            SwarmEvent::Behaviour(AgentEvent::Kad(event)) => match event {
+                KadEvent::ModeChanged { new_mode } => info!("KadEvent:ModeChanged: {new_mode}"),
+                KadEvent::RoutablePeer { peer, address } => info!("KadEvent:RoutablePeer: {peer} | {address}"),
+                KadEvent::PendingRoutablePeer { peer, address } => info!("KadEvent:PendingRoutablePeer: {peer} | {address}"),
+                KadEvent::InboundRequest { request } => info!("KadEvent:InboundRequest: {request:?}"),
+                KadEvent::RoutingUpdated {
+                    peer,
+                    is_new_peer,
+                    addresses,
+                    bucket_range,
+                    old_peer } => {
+                        info!("KadEvent:RoutingUpdated: {peer} | IsNewPeer? {is_new_peer} | {addresses:?} | {bucket_range:?} | OldPeer: {old_peer:?}");
+                    },
+                KadEvent::OutboundQueryProgressed {
+                    id,
+                    result,
+                    stats,
+                    step } => {
+
+                    info!("KadEvent:OutboundQueryProgressed: ID: {id:?} | Result: {result:?} | Stats: {stats:?} | Step: {step:?}")
+                },
+                _ => {}
             }
-        });
-
-        // acceptor_runtime task is run in a blocking manner, so that our server
-        // starts accepting new TCP connections. This task just accepts the
-        // incoming TcpStreams and are sent to the sender half of the channel.
-        acceptor_runtime.spawn(async move {
-            println!("202:{:?}:acceptor_runtime is started", nanos().unwrap());
-
-            //TODO detect if desired port is available
-            //detect opt.port+1 is avail else
-            let listener = match TcpListener::bind(format!("127.0.0.1:{}", 0)).await {
-                //8081
-                Ok(l) => l,
-                Err(e) => panic!("error binding TCP listener: {}:{}", e, 8081),
-            };
-
-            loop {
-                println!(
-                    "210:{:?} acceptor_runtime: loop:listener:{}",
-                    nanos().unwrap(),
-                    listener.local_addr().unwrap()
-                );
-
-                let sock = match accept_conn(&listener).await {
-                    Ok(stream) => stream,
-                    Err(e) => panic!("error reading TCP stream: {}", e),
-                };
-                let _ = tx.send(sock).await;
-            }
-        });
-    } //end loop
-}
-
-async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>> {
-    println!(
-        "228:{:?}:{:?}:accept_conn",
-        millis().unwrap(),
-        nanos().unwrap()
-    );
-    println!(
-        "230:{:?}{:?} accept_conn: loop:listener:{}",
-        millis().unwrap(),
-        nanos().unwrap(),
-        listener.local_addr().unwrap()
-    );
-    match listener.accept().await {
-        Ok((sock, _)) => Ok(sock),
-        Err(e) => panic!("error accepting connection: {}", e),
+            _ => {}
+        }
     }
 }
