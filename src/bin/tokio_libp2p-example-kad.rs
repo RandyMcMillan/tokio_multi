@@ -57,7 +57,7 @@ use tokio_multi::message::{GreeRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    Builder::from_env(Env::default().default_filter_or("trace")).init();
+    Builder::from_env(Env::default().default_filter_or("debug")).init();
 
     let local_key = identity::Keypair::generate_ed25519();
 
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 key.clone().public()
             )
             .with_push_listen_addr_updates(true)
-            .with_interval(Duration::from_secs(30));
+            .with_interval(Duration::from_secs(1)); //TODO cli arg
 
             let rr_config = RequestResponseConfig::default();
             let rr_protocol = StreamProtocol::new("/agent/message/1.0.0");
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             AgentBehavior::new(kad, identify, rr_behavior)
 
         })?
-        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(30)))
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(10)))
         .build();
 
     swarm.behaviour_mut().set_server_mode();
@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         info!("Dialed to: {addr}");
     } else {
         info!("Act as bootstrap node");
-        swarm.listen_on("/ip4/0.0.0.0/tcp/8000".parse()?)?;
+        swarm.listen_on("/ip4/0.0.0.0/tcp/6102".parse()?)?;
     }
 
     let mut peers: HashMap<PeerId, Vec<Multiaddr>> = HashMap::new();
@@ -132,6 +132,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     peers.insert(peer_id, info.clone().listen_addrs);    
 
                     for addr in info.clone().listen_addrs {
+                    info!("addr: {addr} | {info:?}");
                         let agent_routing = swarm.behaviour_mut().register_addr_kad(&peer_id, addr.clone());
                         match agent_routing {
                             RoutingUpdate::Failed => error!("IdentifyReceived: Failed to register address to Kademlia"),
@@ -144,7 +145,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         _ = swarm.behaviour_mut().register_addr_rr(&peer_id, addr.clone());
                         
                         let local_peer_id = local_key.public().to_peer_id();
-                        let message = GreeRequest{ message: format!("Send message from: {local_peer_id}: Hello gaess") };
+						//GreeRequest
+                        let message = GreeRequest{ message: format!("Send message from: {local_peer_id}: Hello gnostr!!!") };
                         let request_id = swarm.behaviour_mut().send_message(&peer_id, message);
                         info!("RequestID: {request_id}")
                     }
@@ -159,13 +161,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         RequestResponseMessage::Request { request_id, request, channel} => {
                             info!("RequestResponseEvent::Message::Request -> PeerID: {peer} | RequestID: {request_id} | RequestMessage: {request:?}");
                             let local_peer_id = local_key.public().to_peer_id();
-                            let response = GreetResponse{ message: format!("Response from: {local_peer_id}: hello too").to_string() };
+                            let response = GreetResponse{ message: format!("Response from: {local_peer_id}: hello gnostr too!!!").to_string() };
                             let result = swarm.behaviour_mut().send_response(channel, response);
                             if result.is_err() {
                                 let err = result.unwrap_err();
                                 error!("Error sending response: {err:?}")
                             } else {
-                                info!("Sending a message was success")
+                                info!("\n\n\nSending a gnostr message was success!!!\n\n")
                             }
                         },
                         RequestResponseMessage::Response { request_id, response } => {
