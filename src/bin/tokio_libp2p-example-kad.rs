@@ -9,7 +9,7 @@ use std::error::Error;
 use std::time::Duration;
 
 use env_logger::{Builder, Env};
-use log::{error, info, warn};
+use log::{debug, error, info, trace, warn};
 use tokio;
 
 use libp2p::{
@@ -49,15 +49,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     if args_vec.len() < 2 {
         info!("Please provide at least one argument.");
-        (())
+        ()
     }
 
-    println!("Arguments:");
+    trace!("Arguments:");
     for (index, arg) in args_vec.iter().enumerate() {
         if Some(index) == Some(0) {
-            println!("Some(index) = Some(0):  {}: {}", index, arg);
+            trace!("Some(index) = Some(0):  {}: {}", index, arg);
         } else {
-            println!("  {}: {}", index, arg);
+            trace!("  {}: {}", index, arg);
         }
     }
 
@@ -115,15 +115,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let remote: Multiaddr = addr.parse()?;
         swarm.dial(remote)?;
-        info!("Dialed to: {addr}");
+        info!("\n\nDialed to: {addr}\n\n");
     } else {
+        swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
         let interfaces = get_if_addrs()?;
 
         for iface in interfaces {
-            println!("Interface: {}", iface.name);
+            debug!("Interface: {}", iface.name);
             match iface.addr {
-                IfAddr::V4(ipv4) => println!("  IPv4: {}", ipv4.ip),
-                IfAddr::V6(ipv6) => println!("  IPv6: {}", ipv6.ip),
+                IfAddr::V4(ipv4) => {
+                    info!("  IPv4: {:?}", ipv4);
+                    info!("{}", ipv4.ip);
+                    info!("");
+                    swarm.listen_on(format!("/ip4/{}/tcp/6102", ipv4.ip).parse()?)?;
+                }
+                IfAddr::V6(ipv6) => {
+                    info!("  IPv6: {:?}", ipv6);
+                    info!("{}", ipv6.ip);
+                    info!("");
+                    swarm.listen_on(format!("/ip6/{}/tcp/6102", ipv6.ip).parse()?)?;
+                }
             }
         }
         info!("Act as bootstrap node");
