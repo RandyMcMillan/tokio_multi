@@ -42,7 +42,37 @@ use tokio_multi::message::{GreeRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    Builder::from_env(Env::default().default_filter_or("debug")).init();
+
+    let args_vec: Vec<String> = env::args().collect();
+
+    if args_vec.len() < 2 {
+        info!("Please provide at least one argument.");
+        (())
+    }
+
+    println!("Arguments:");
+    for (index, arg) in args_vec.iter().enumerate() {
+		if Some(index) == Some(0) {
+			println!("Some(index) = Some(0):  {}: {}", index, arg);
+		} else {
+			println!("  {}: {}", index, arg);
+    }
+	}
+
+    if let Some(whoami) = Some(args_vec[0].clone()) {
+        //let whoami: String = whoami.parse()?;
+        info!("whoami: {whoami}");
+    } else {
+        //let whoami: String = whoami.parse()?;
+        //info!("whoami: {whoami}");
+    }
+
+
+    if let Some(log_level) = args().nth(2) {
+		Builder::from_env(Env::default().default_filter_or(log_level)).init();
+	} else {
+		Builder::from_env(Env::default().default_filter_or("info")).init();
+	}
 
     let local_key = identity::Keypair::generate_ed25519();
 
