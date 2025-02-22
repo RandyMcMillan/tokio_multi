@@ -57,9 +57,13 @@ y := """
 default:
   @just --list
 
-tokio_libp2p-example:
+tokio_libp2p-example *args='':
   @just exec "cargo b --bin tokio_libp2p-example"
-  @just exec "cargo run --bin tokio_libp2p-example" 
+  bash -c 'while (( "$#" )); do cargo run --bin tokio_libp2p-example $1 $2; shift; done' -- "$@"
+
+tokio_libp2p-example-kad *args='':
+  @just exec "cargo b --bin tokio_libp2p-example-kad"
+  bash -c 'while (( "$#" )); do cargo run --bin tokio_libp2p-example-kad -- $1 $2; shift; done' -- "$@"
 
 @exec *args='':
   bash -c 'while (( "$#" )); do $1; shift; done' -- "$@"
