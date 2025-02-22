@@ -1,4 +1,7 @@
+use std::net::{IpAddr, UdpSocket};
 use tokio_multi::*;
+
+use get_if_addrs::{get_if_addrs, IfAddr};
 
 use std::collections::HashMap;
 use std::env::args;
@@ -42,7 +45,6 @@ use tokio_multi::message::{GreeRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-
     let args_vec: Vec<String> = env::args().collect();
 
     if args_vec.len() < 2 {
@@ -52,12 +54,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Arguments:");
     for (index, arg) in args_vec.iter().enumerate() {
-		if Some(index) == Some(0) {
-			println!("Some(index) = Some(0):  {}: {}", index, arg);
-		} else {
-			println!("  {}: {}", index, arg);
+        if Some(index) == Some(0) {
+            println!("Some(index) = Some(0):  {}: {}", index, arg);
+        } else {
+            println!("  {}: {}", index, arg);
+        }
     }
-	}
 
     if let Some(whoami) = Some(args_vec[0].clone()) {
         //let whoami: String = whoami.parse()?;
@@ -67,12 +69,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //info!("whoami: {whoami}");
     }
 
-
     if let Some(log_level) = args().nth(2) {
-		Builder::from_env(Env::default().default_filter_or(log_level)).init();
-	} else {
-		Builder::from_env(Env::default().default_filter_or("info")).init();
-	}
+        Builder::from_env(Env::default().default_filter_or(log_level)).init();
+    } else {
+        Builder::from_env(Env::default().default_filter_or("info")).init();
+    }
 
     let local_key = identity::Keypair::generate_ed25519();
 
@@ -116,6 +117,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         swarm.dial(remote)?;
         info!("Dialed to: {addr}");
     } else {
+        let interfaces = get_if_addrs()?;
+
+        for iface in interfaces {
+            println!("Interface: {}", iface.name);
+            match iface.addr {
+                IfAddr::V4(ipv4) => println!("  IPv4: {}", ipv4.ip),
+                IfAddr::V6(ipv6) => println!("  IPv6: {}", ipv6.ip),
+            }
+        }
         info!("Act as bootstrap node");
         swarm.listen_on("/ip4/0.0.0.0/tcp/6102".parse()?)?;
     }
@@ -136,9 +146,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 IdentifyEvent::Sent { peer_id, .. } => info!("IdentifyEvent:Sent: {peer_id}"),
                 IdentifyEvent::Pushed { peer_id, info, .. } => info!("IdentifyEvent:Pushed: {peer_id} | {info:?}"),
                 //IdentifyEvent::Received { peer_id, info } => {
-				//IdentifyEvent::Received { peer_id, info, connection_id } => {
-				IdentifyEvent::Received { peer_id, info, .. } => {
-                    info!("IdentifyEvent:Received: {peer_id} | {info:?}");
+				IdentifyEvent::Received { peer_id, info, connection_id } => {
+				//IdentifyEvent::Received { peer_id, info, .. } => {
+                    info!("IdentifyEvent:Received:\n{peer_id} | {info:?}\n");
                     peers.insert(peer_id, info.clone().listen_addrs);
 
                     for addr in info.clone().listen_addrs {
