@@ -1,11 +1,14 @@
 [package]
 name = "tokio_multi"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [[bin]]
 name = "tokio_libp2p-example"
 path = "src/bin/tokio_libp2p-example.rs"
+[[bin]]
+name = "tokio_libp2p-example-kad"
+path = "src/bin/tokio_libp2p-example-kad.rs"
 [[bin]]
 name = "tokio_multi"
 path = "src/bin/tokio_multi.rs"
