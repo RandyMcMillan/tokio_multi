@@ -22,13 +22,16 @@ name = "simple"
 path = "src/bin/simple.rs"
 
 [dependencies]
-##tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "full"] }
+async-trait = "0.1"
+tracing = { version = "0.1.37" }
+
+git2 = "0.19.0"
 clap = { version = "4.5.6", features = ["derive"] }
 dirs = "5.0.1"
 env_logger = "0.10.1"
 futures = { version = "0.3.30" }
 get_if_addrs = "0.5.3"
-libp2p = { version = "0.54.1", features = ["tokio", "noise", "macros", "ping", "tcp", "identify", "yamux", "relay", "quic", "tls", "kad", "identify",
+libp2p = { version = "0.54.1", features = ["gossipsub", "mdns", "tokio", "noise", "macros", "ping", "tcp", "identify", "yamux", "relay", "quic", "tls", "kad", "identify",
 "cbor", "request-response", "dns"] }
 log = "0.4.20"
 serde = { version = "1.0.192", features = ["derive"] } 
