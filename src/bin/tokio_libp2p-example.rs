@@ -143,8 +143,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         RequestResponseMessage::Request { request_id, request, channel} => {
 
 
-                            info!("\n\nRequestResponseEvent::Message::Request -> PeerID: {peer} | RequestID: {request_id} | RequestMessage: \n\n{request:?}\n\n");
-
+                            info!("\n\n\n\nRequestResponseEvent::Message::Request -> PeerID:\n{peer} | RequestID:\n{request_id} | RequestMessage:\n{request:?}");
 
                             let local_peer_id = local_key.public().to_peer_id();
                             let response = GreetResponse{ message: format!("Response from: {local_peer_id}: hello gnostr too!!!").to_string() };
@@ -157,7 +156,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             } else {
 
 
-                                info!("\n\n\nSending a gnostr message was success!!!\n\n")
+                                info!("\n\n\nSending a gnostr message was success!!!\n")
 
 
                             }
@@ -165,8 +164,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         RequestResponseMessage::Response { request_id, response } => {
 
 
-                            info!("\n\n\nRequestResponseEvent::Message::Response -> PeerID: {peer} | RequestID: {request_id} | Response: \n\n{response:?}\n\n")
-
+                            info!("\n\n\nRequestResponseEvent::Message::Response -> PeerID: {peer} | RequestID: {request_id} | Response:\n\n{response:?}\n")
 
                         }
                     }
@@ -177,7 +175,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 RequestResponseEvent::ResponseSent { peer, request_id } => {
 
 
-                    info!("\n\n\nRequestResponseEvent::ResponseSent -> PeerID: {peer} | RequestID: {request_id}\n\n")
+                    info!("\n\n\nRequestResponseEvent::ResponseSent -> PeerID: {peer} | RequestID: {request_id}\n")
 
 
                 },

@@ -195,7 +195,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 
                             let local_peer_id = local_key.public().to_peer_id();
-                            let response = GreetResponse{ message: format!("\n\nResponse from:\n{local_peer_id}:\nhello gnostr too!!!\n\n").to_string() };
+                            let response = GreetResponse{ message: format!("Response from: {local_peer_id}: hello gnostr too!!!").to_string() };
 
 
                             let result = swarm.behaviour_mut().send_response(channel, response);
