@@ -38,7 +38,7 @@ use libp2p::request_response::cbor::Behaviour as RequestResponseBehavior;
 use tokio_multi::behavior::{Behavior as AgentBehavior, Event as AgentEvent};
 
 //mod message;
-use tokio_multi::message::{GreeRequest, GreetResponse};
+use tokio_multi::message::{GreetRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let rr_config = RequestResponseConfig::default();
             let rr_protocol = StreamProtocol::new("/agent/message/1.0.0");
-            let rr_behavior = RequestResponseBehavior::<GreeRequest, GreetResponse>::new(
+            let rr_behavior = RequestResponseBehavior::<GreetRequest, GreetResponse>::new(
                 [(rr_protocol, RequestResponseProtocolSupport::Full)],
                 rr_config,
             );
@@ -126,8 +126,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         _ = swarm.behaviour_mut().register_addr_rr(&peer_id, addr.clone());
 
                         let local_peer_id = local_key.public().to_peer_id();
-						//GreeRequest
-                        let message = GreeRequest{ message: format!("Send message from: {local_peer_id}: Hello gnostr!!!") };
+						//GreetRequest
+                        let message = GreetRequest{ message: format!("Send message from: {local_peer_id}: Hello gnostr!!!") };
                         let request_id = swarm.behaviour_mut().send_message(&peer_id, message);
                         info!("RequestID: {request_id}")
                     }

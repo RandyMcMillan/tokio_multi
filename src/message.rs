@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GreeRequest {
+pub struct GreetRequest {
     pub message: String,
 }
 

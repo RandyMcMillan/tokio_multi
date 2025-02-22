@@ -41,7 +41,7 @@ use libp2p::request_response::cbor::Behaviour as RequestResponseBehavior;
 use tokio_multi::behavior::{Behavior as AgentBehavior, Event as AgentEvent};
 
 //mod message;
-use tokio_multi::message::{GreeRequest, GreetResponse};
+use tokio_multi::message::{GreetRequest, GreetResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let rr_config = RequestResponseConfig::default();
             let rr_protocol = StreamProtocol::new("/agent/message/1.0.0");
-            let rr_behavior = RequestResponseBehavior::<GreeRequest, GreetResponse>::new(
+            let rr_behavior = RequestResponseBehavior::<GreetRequest, GreetResponse>::new(
                 [(rr_protocol, RequestResponseProtocolSupport::Full)],
                 rr_config,
             );
@@ -109,36 +109,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build();
 
     swarm.behaviour_mut().set_server_mode();
+    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+
+    let interfaces = get_if_addrs()?;
 
     if let Some(addr) = args().nth(1) {
-        swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
-
         let remote: Multiaddr = addr.parse()?;
         swarm.dial(remote)?;
-        info!("\n\nDialed to: {addr}\n\n");
+        info!("\n\nDialed to: {addr}\n");
     } else {
-        swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
-        let interfaces = get_if_addrs()?;
-
+        info!("Act as bootstrap node");
         for iface in interfaces {
             debug!("Interface: {}", iface.name);
             match iface.addr {
                 IfAddr::V4(ipv4) => {
-                    info!("  IPv4: {:?}", ipv4);
-                    info!("{}", ipv4.ip);
-                    info!("");
+                    trace!("\n\nipv4.ip={}\n\n", ipv4.ip);
+                    let multi_addr: Multiaddr = format!("/ip4/{}/tcp/6102", ipv4.ip).parse()?;
                     swarm.listen_on(format!("/ip4/{}/tcp/6102", ipv4.ip).parse()?)?;
+                    let _ = swarm.dial(multi_addr)?;
                 }
                 IfAddr::V6(ipv6) => {
-                    info!("  IPv6: {:?}", ipv6);
-                    info!("{}", ipv6.ip);
-                    info!("");
+                    trace!("\n\nipv6.ip={}\n\n", ipv6.ip);
+                    let multi_addr: Multiaddr = format!("/ip6/{}/tcp/6102", ipv6.ip).parse()?;
                     swarm.listen_on(format!("/ip6/{}/tcp/6102", ipv6.ip).parse()?)?;
+                    let _ = swarm.dial(multi_addr)?;
                 }
             }
         }
-        info!("Act as bootstrap node");
-        swarm.listen_on("/ip4/0.0.0.0/tcp/6102".parse()?)?;
     }
 
     let mut peers: HashMap<PeerId, Vec<Multiaddr>> = HashMap::new();
@@ -151,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 endpoint,
                 num_established,
                 concurrent_dial_errors,
-                established_in } => info!("\n\nConnectionEstablished: {peer_id} | {connection_id} | {endpoint:?} | {num_established} | {concurrent_dial_errors:?} | {established_in:?}\n\n"),
+                established_in } => info!("\n\nConnectionEstablished: {peer_id} | {connection_id} | {endpoint:?} | {num_established} | {concurrent_dial_errors:?} | {established_in:?}\n"),
             SwarmEvent::Dialing { peer_id, connection_id } => info!("Dialing: {peer_id:?} | {connection_id}"),
             SwarmEvent::Behaviour(AgentEvent::Identify(event)) => match event {
                 IdentifyEvent::Sent { peer_id, .. } => info!("IdentifyEvent:Sent: {peer_id}"),
@@ -159,31 +156,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 //IdentifyEvent::Received { peer_id, info } => {
 				IdentifyEvent::Received { peer_id, info, connection_id } => {
 				//IdentifyEvent::Received { peer_id, info, .. } => {
-                    info!("IdentifyEvent:Received:\n{peer_id} | {info:?}\n");
+                    info!("\n\nIdentifyEvent:Received:\n{peer_id} | {info:?}\n\n");
                     peers.insert(peer_id, info.clone().listen_addrs);
 
                     for addr in info.clone().listen_addrs {
-                    info!("addr: {addr} | {info:?}");
-                    info!("info: {info:?}");
+                    info!("\n\naddr:\n{addr} | {info:?}\n");
+                    info!("\n\ninfo:\n{info:?}\n");
                         let agent_routing = swarm.behaviour_mut().register_addr_kad(&peer_id, addr.clone());
                         match agent_routing {
                             RoutingUpdate::Failed => error!("IdentifyReceived: Failed to register address to Kademlia"),
                             RoutingUpdate::Pending => warn!("IdentifyReceived: Register address pending"),
                             RoutingUpdate::Success => {
-                                info!("IdentifyReceived: {addr}: Success register address");
+                                info!("\n\nIdentifyReceived: {addr}: Success register address\n");
                             }
                         }
 
                         _ = swarm.behaviour_mut().register_addr_rr(&peer_id, addr.clone());
 
                         let local_peer_id = local_key.public().to_peer_id();
-						//GreeRequest
-                        let message = GreeRequest{ message: format!("Send message from: {local_peer_id}: Hello gnostr!!!") };
+						//GreetRequest
+                        let message = GreetRequest{ message: format!("Send message from: {local_peer_id}: Hello gnostr!!!") };
                         let request_id = swarm.behaviour_mut().send_message(&peer_id, message);
-                        info!("RequestID: {request_id}")
+                        info!("\n\nRequestID: {request_id}\n")
                     }
 
-                    info!("Available peers: {peers:?}");
+                    info!("\n\nAvailable peers:\n{peers:?}\n\n");
 
                 },
                 _ => {}
@@ -194,11 +191,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         RequestResponseMessage::Request { request_id, request, channel} => {
 
 
-                            info!("\n\nRequestResponseEvent::Message::Request -> PeerID: {peer} | RequestID: {request_id} | RequestMessage: \n\n{request:?}\n\n");
+                            info!("\n\nRequestResponseEvent::Message::Request -> PeerID: {peer} | RequestID: {request_id} | RequestMessage:\n{request:?}\n\n");
 
 
                             let local_peer_id = local_key.public().to_peer_id();
-                            let response = GreetResponse{ message: format!("Response from: {local_peer_id}: hello gnostr too!!!").to_string() };
+                            let response = GreetResponse{ message: format!("\n\nResponse from:\n{local_peer_id}:\nhello gnostr too!!!\n\n").to_string() };
 
 
                             let result = swarm.behaviour_mut().send_response(channel, response);
@@ -216,38 +213,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         RequestResponseMessage::Response { request_id, response } => {
 
 
-                            info!("\n\n\nRequestResponseEvent::Message::Response -> PeerID: {peer} | RequestID: {request_id} | Response: \n\n{response:?}\n\n")
+                            info!("\n\n\nRequestResponseEvent::Message::Response -> PeerID:\n{peer} | RequestID: {request_id} | Response:\n{response:?}\n\n")
 
 
                         }
                     }
                 },
                 RequestResponseEvent::InboundFailure { peer, request_id, error } => {
-                    warn!("RequestResponseEvent::InboundFailure -> PeerID: {peer} | RequestID: {request_id} | Error: {error}")
+                    warn!("\n\nRequestResponseEvent::InboundFailure -> PeerID:\n{peer} | RequestID: {request_id} | Error: {error}\n")
                 },
                 RequestResponseEvent::ResponseSent { peer, request_id } => {
 
 
-                    info!("\n\n\nRequestResponseEvent::ResponseSent -> PeerID: {peer} | RequestID: {request_id}\n\n")
+                    info!("\n\n\nRequestResponseEvent::ResponseSent -> PeerID:\n{peer} | RequestID:\n{request_id}\n\n")
 
 
                 },
                 RequestResponseEvent::OutboundFailure { peer, request_id, error } => {
-                    warn!("RequestResponseEvent::OutboundFailure -> PeerID: {peer} | RequestID: {request_id} | Error: {error}")
+                    warn!("\n\n\nRequestResponseEvent::OutboundFailure -> PeerID:\n{peer} | RequestID:\n{request_id} | Error: {error}")
                 }
             },
             SwarmEvent::Behaviour(AgentEvent::Kad(event)) => match event {
-                KadEvent::ModeChanged { new_mode } => info!("KadEvent:ModeChanged: {new_mode}"),
-                KadEvent::RoutablePeer { peer, address } => info!("KadEvent:RoutablePeer: {peer} | {address}"),
-                KadEvent::PendingRoutablePeer { peer, address } => info!("KadEvent:PendingRoutablePeer: {peer} | {address}"),
-                KadEvent::InboundRequest { request } => info!("KadEvent:InboundRequest: {request:?}"),
+                KadEvent::ModeChanged { new_mode } => info!("\n\nKadEvent:ModeChanged:\n{new_mode}\n"),
+                KadEvent::RoutablePeer { peer, address } => info!("\n\nKadEvent:RoutablePeer:\n{peer} | {address}\n"),
+                KadEvent::PendingRoutablePeer { peer, address } => info!("\n\nKadEvent:PendingRoutablePeer:\n{peer} | {address}\n"),
+                KadEvent::InboundRequest { request } => info!("\n\nKadEvent:InboundRequest:\n{request:?}\n"),
                 KadEvent::RoutingUpdated {
                     peer,
                     is_new_peer,
                     addresses,
                     bucket_range,
                     old_peer } => {
-                        info!("KadEvent:RoutingUpdated: {peer} | IsNewPeer? {is_new_peer} | {addresses:?} | {bucket_range:?} | OldPeer: {old_peer:?}");
+
+                        info!("\n\nKadEvent:RoutingUpdated:\n{peer} | IsNewPeer? {is_new_peer} | {addresses:?} | {bucket_range:?} | OldPeer: {old_peer:?}\n\n");
+
                     },
                 KadEvent::OutboundQueryProgressed {
                     id,
@@ -255,7 +254,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     stats,
                     step } => {
 
-                    info!("KadEvent:OutboundQueryProgressed: ID: {id:?} | Result: {result:?} | Stats: {stats:?} | Step: {step:?}")
+                    info!("\n\nKadEvent:OutboundQueryProgressed:\nID: {id:?} | Result:\n{result:?} | Stats:\n{stats:?} | Step:\n{step:?}\n\n")
+
                 },
                 _ => {}
             }

@@ -12,7 +12,7 @@ use libp2p::request_response::{
     Event as RequestResponseEvent, OutboundRequestId, ResponseChannel as RequestResponseChannel,
 };
 
-pub use crate::message::{GreeRequest, GreetResponse};
+pub use crate::message::{GreetRequest, GreetResponse};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "Event")]
@@ -20,14 +20,14 @@ pub use crate::message::{GreeRequest, GreetResponse};
 pub struct Behavior {
     identify: IdentifyBehavior,
     kad: KademliaBehavior<KademliaInMemory>,
-    rr: RequestResponseBehavior<GreeRequest, GreetResponse>,
+    rr: RequestResponseBehavior<GreetRequest, GreetResponse>,
 }
 
 impl Behavior {
     pub fn new(
         kad: KademliaBehavior<KademliaInMemory>,
         identify: IdentifyBehavior,
-        rr: RequestResponseBehavior<GreeRequest, GreetResponse>,
+        rr: RequestResponseBehavior<GreetRequest, GreetResponse>,
     ) -> Self {
         Self { kad, identify, rr }
     }
@@ -40,7 +40,7 @@ impl Behavior {
         self.rr.add_address(peer_id, addr)
     }
 
-    pub fn send_message(&mut self, peer_id: &PeerId, message: GreeRequest) -> OutboundRequestId {
+    pub fn send_message(&mut self, peer_id: &PeerId, message: GreetRequest) -> OutboundRequestId {
         self.rr.send_request(peer_id, message)
     }
 
@@ -62,7 +62,7 @@ impl Behavior {
 pub enum Event {
     Identify(IdentifyEvent),
     Kad(KademliaEvent),
-    RequestResponse(RequestResponseEvent<GreeRequest, GreetResponse>),
+    RequestResponse(RequestResponseEvent<GreetRequest, GreetResponse>),
 }
 
 impl From<IdentifyEvent> for Event {
@@ -77,8 +77,8 @@ impl From<KademliaEvent> for Event {
     }
 }
 
-impl From<RequestResponseEvent<GreeRequest, GreetResponse>> for Event {
-    fn from(value: RequestResponseEvent<GreeRequest, GreetResponse>) -> Self {
+impl From<RequestResponseEvent<GreetRequest, GreetResponse>> for Event {
+    fn from(value: RequestResponseEvent<GreetRequest, GreetResponse>) -> Self {
         Self::RequestResponse(value)
     }
 }
