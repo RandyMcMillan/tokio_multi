@@ -1,16 +1,7 @@
-//use dirs::*;
-//use std::env;
+use log::debug;
 use std::error::Error;
-
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
-
-//use tokio::{
-    //io::{AsyncReadExt, AsyncWriteExt},
-    //net::{TcpListener, TcpStream},
-    //sync::mpsc,
-//};
-
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const CUSTOM_PORT: usize = 8000;
@@ -43,9 +34,7 @@ pub fn random_seed() -> u64 {
 
 pub fn nanos() -> Result<u32, Box<dyn Error>> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.subsec_nanos();
-
-    // Prints 864479511, 455850730, etc.
-    println!("Random number: {nanos}");
+    debug!("nanos(): {nanos}");
     Ok(nanos)
 }
 
@@ -72,10 +61,10 @@ impl Xorshift128 {
             // In a real library, you'd likely use a default non-zero seed or panic.
             // For this example, we'll use the default seeds from the paper.
             Xorshift128 {
-                x: 123456789,
-                y: 362436069,
-                z: 521288629,
-                w: 88675123,
+                x: nanos().expect(""),
+                y: nanos().expect(""),
+                z: nanos().expect(""),
+                w: nanos().expect(""),
             }
         } else {
             Xorshift128 {
@@ -90,7 +79,7 @@ impl Xorshift128 {
     /// Generates the next pseudo-random 32-bit unsigned integer.
     pub fn next(&mut self) -> u32 {
         // 1. Calculate the temporary value 't' using the current 'x'
-        let mut t = self.x ^ (self.x << 11);
+        let t = self.x ^ (self.x << 11);
 
         // 2. State promotion (shift the state variables): x = y, y = z, z = w
         self.x = self.y;
