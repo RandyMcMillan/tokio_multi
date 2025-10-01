@@ -62,12 +62,12 @@ impl Xorshift128 {
         // Simple check to ensure not all seeds are zero
         if seed_x == 0 && seed_y == 0 && seed_z == 0 && seed_w == 0 {
             // In a real library, you'd likely use a default non-zero seed or panic.
-            // For this example, we'll use the default seeds from the paper.
+            // For this example, we'll use the nanos() instead of default seeds from the paper.
             Xorshift128 {
-                x: nanos().expect(""),
-                y: nanos().expect(""),
-                z: nanos().expect(""),
-                w: nanos().expect(""),
+                x: nanos().expect(""), // 123456789
+                y: nanos().expect(""), // 362436069
+                z: nanos().expect(""), // 521288629
+                w: nanos().expect(""), // 88675123
             }
         } else {
             Xorshift128 {
