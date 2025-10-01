@@ -38,8 +38,11 @@ pub fn nanos() -> Result<u32, Box<dyn Error>> {
     Ok(nanos)
 }
 
-pub fn add(left: u64, right: u64) -> u64 {
+pub fn func_add(left: u64, right: u64) -> u64 {
     left + right
+}
+pub fn func_xor(left: u64, right: u64) -> u64 {
+    left ^ right
 }
 
 pub struct Xorshift128 {
