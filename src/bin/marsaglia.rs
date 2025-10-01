@@ -17,3 +17,27 @@ fn main() {
         println!("{}: {}", i + 1, rand_val);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //use super::*;
+
+    use crate::Xorshift128;
+    use std::sync::{LazyLock, Mutex};
+
+    static RNG: LazyLock<Mutex<Xorshift128>> = LazyLock::new(|| {
+        let rng_instance = Xorshift128::new(10, 20, 30, 40);
+        Mutex::new(rng_instance)
+    });
+
+    #[test]
+    fn test_static_rng_access() {
+        println!("Generating 10 pseudo-random 32-bit integers using static RNG:");
+        for i in 0..10 {
+            let mut rng_guard = RNG.lock().unwrap();
+            let rand_val = rng_guard.next();
+            println!("{}: {}", i + 1, rand_val);
+        }
+        assert!(true);
+    }
+}
