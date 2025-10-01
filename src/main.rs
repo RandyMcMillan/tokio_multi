@@ -11,9 +11,9 @@ use tokio::{
     sync::mpsc,
 };
 
-use tokio_multi::CUSTOM_PORT;
-use tokio_multi::prepend;
 use tokio_multi::nanos;
+use tokio_multi::prepend;
+use tokio_multi::CUSTOM_PORT;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let nanos = nanos();
@@ -89,8 +89,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .expect("failed to write response");
                     println!("post:\n{:?}", new_buf);
                     let utf8_string = String::from_utf8(new_buf)
-                        .map_err(|non_utf8| String::from_utf8_lossy(non_utf8.as_bytes())
-                        .into_owned())
+                        .map_err(|non_utf8| {
+                            String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
+                        })
                         .unwrap();
                     println!("{}", utf8_string);
                     //buf.push(b'\n');

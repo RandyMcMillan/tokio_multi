@@ -1,6 +1,6 @@
 use log::debug;
-use std::error::Error;
 use std::collections::hash_map::RandomState;
+use std::error::Error;
 use std::hash::{BuildHasher, Hasher};
 use std::time::{SystemTime, UNIX_EPOCH};
 
