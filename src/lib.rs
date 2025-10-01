@@ -103,8 +103,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
+    fn add() {
+        let result = func_add(2, 2);
         assert_eq!(result, 4);
+    }
+    #[test]
+    fn xor() {
+        let result = func_xor(2, 2);
+        assert_eq!(result, 0);
     }
 }
